@@ -2,12 +2,19 @@
 
 import time
 import random
+from typing import List, Dict
+import copy
+import codecs, json
+from tqdm import tqdm
 import numpy as np
 from dataclasses import dataclass
 import matplotlib.pyplot as pyplot
-from numpy.random import random_integers as rand
-import copy
 
+@dataclass
+class Maze:
+    """Object representing a maze"""
+    terrain: np.array
+    dim: (int, int)
 
 @dataclass
 class Tile:
@@ -34,13 +41,13 @@ class Resources():
         mine(): Simulate mining resource
     """
 
-    def __init__(self, resource_allocation):
+    def __init__(self, resource_allocation: (int, int, int)):
         self.stockpile = resource_allocation[0]
         self.__min = resource_allocation[1]
         self.__max = resource_allocation[2]
         self.locations = {}
 
-    def place(self, location):
+    def place(self, location: Tile):
         """Given a tile, allocate random amount of resource from the stockpile
 
         in the range of __min to __max
@@ -51,7 +58,7 @@ class Resources():
         self.locations[location] = amount
         self.stockpile = self.stockpile - amount
 
-    def mine(self, capacity, rate, source):
+    def mine(self, capacity: int, rate: float, source: Tile) -> int:
         """Mine resource up to max(capacity, available resource at source)
 
         returning after a simulated mining delay based on rate
@@ -79,17 +86,17 @@ class PlayerInterface():
 
     Methods:
         move(): Preform a move from player_pos to a destination tile
-        current_visible_tiles(): Return current visible tiles from player_pos 
+        current_visible_tiles(): Return current visible tiles from player_pos
         __discovered_tiles(): Return visible tiles from given tile
         __resource_data(): Return amount of resource at provided tile (or None)
 
     """
 
-    def __init__(self, dimensions, resource_allocation):
-        self.__maze = Maze(dimensions, resource_allocation)
+    def __init__(self, dimensions: Tile, resource_allocation: (int, int, int)):
+        self.__maze = MazeBuilder(dimensions, resource_allocation)
         self.player_pos = self.__maze.player_start
 
-    def move(self, dest_tile):
+    def move(self, dest_tile: Tile) -> Dict[Tile, int]:
         """Move player from current position to dest_tile with error checking
 
         to ensure that an attempted move is to a tile adjacent to the players
@@ -100,7 +107,7 @@ class PlayerInterface():
         if self.__maze.is_wall(dest_tile):
             raise ValueError('Dest: ' + str(dest_tile) + ' is a wall tile')
 
-        if dest_tile in self.__maze.adjacent_tiles(self.player_pos):
+        if dest_tile in adjacent_tiles(self.player_pos, self.__maze.maze):
             self.player_pos = copy.copy(dest_tile)
         else:
             raise ValueError(str(self.player_pos) + ' -> ' + str(dest_tile)
@@ -137,7 +144,7 @@ class PlayerInterface():
 
         return visited_tiles
 
-    def __resource_data(self, tile):
+    def __resource_data(self, tile: Tile) -> int:
         """Returns None if the provided tile is not a resource tile, otherwise
 
         returns the amount of resource at the provided tile
@@ -149,13 +156,12 @@ class PlayerInterface():
 
         return self.__maze.resources.locations[tile]
 
-class Maze():
+class MazeBuilder():
     """Random construction of a data structure representing a maze
 
     Members:
         dim: Dimensions of a maze (x, y)
-        maze_terrain: A bool numpy array the encodes a maze using False for
-                      wall tiles and True for walkable tiles
+        terrain: A Maze dataclass object
         resource_allocation: Data used to construct a Resource class to manage
                              available resources in maze
 
@@ -181,11 +187,11 @@ class Maze():
 
     """
 
-
-    def __init__(self, dimensions, resource_allocation):
+    def __init__(self, dimensions: (int, int),
+                 resource_allocation: (int, int, int)):
 
         self.dim = dimensions
-        self.maze_terrain = np.zeros(dimensions, dtype=bool) # False == Wall
+        self.maze = Maze(np.zeros(dimensions, dtype=bool), dimensions)
         self.resource_allocation = resource_allocation
         self.player_start = None
         self.resources = Resources(resource_allocation)
@@ -195,49 +201,58 @@ class Maze():
     def __build_maze(self):
         """Starting point for building data structures required for maze
 
-        Alters the maze_terrain member using a version of Wilson's maze
+        Alters the maze.terrain member using a version of Wilson's maze
         creation algorithm. Random tiles are assigned to resources until
         the stockpile is exhausted, then the remainder of the maze is
         randomly build until no more tiles can be randomly selected.
 
         """
 
-        self.player_start = self.random_wall_tile(self.maze_terrain)
-        self.__clear_zone(self.player_start)
-        valid_tiles = np.copy(self.maze_terrain)
-        valid_tiles[0, :] = valid_tiles[-1, :] = True
-        valid_tiles[:, 0] = valid_tiles[:, -1] = True
+        self.player_start = random_wall_tile(self.maze)
+        clear_zone(self.player_start, self.maze)
+        available_tiles = Maze(np.copy(self.maze.terrain), self.dim)
+        available_tiles.terrain[0, :] = available_tiles.terrain[-1, :] = True
+        available_tiles.terrain[:, 0] = available_tiles.terrain[:, -1] = True
+        print_maze_terrain(available_tiles)
 
-        # Place resource and connect to maze through a random walk
-        while self.resources.stockpile > 0:
-            tile = self.random_wall_tile(valid_tiles)
-            self.resources.place(tile)
+        total_available_tiles = (np.size(available_tiles.terrain)
+                                 - np.count_nonzero(available_tiles.terrain))
 
-            walk = self.random_walk(tile)
-            self.__clear_tiles(walk)
-            walk = [self.adjacent_tiles(x) for x in walk]
-            walk = [x for sublist in walk for x in sublist]
-            valid_tiles = self.__clear_tiles(walk, valid_tiles)
+        with tqdm(total=total_available_tiles) as pbar:
+            # Place resource and connect to maze through a random walk
+            while self.resources.stockpile > 0:
+                tile = random_wall_tile(available_tiles)
+                self.resources.place(tile)
 
-        while not np.all(valid_tiles):
-            walk = self.random_walk(self.random_wall_tile(valid_tiles))
-            self.__clear_tiles(walk)
-            walk = [self.adjacent_tiles(x) for x in walk]
-            walk = [x for sublist in walk for x in sublist]
-            valid_tiles = self.__clear_tiles(walk, valid_tiles)
+                walk = self.random_walk(tile)
+                clear_tiles(walk, self.maze)
+                walk = [adjacent_tiles(x, self.maze) for x in walk]
+                walk = [x for sublist in walk for x in sublist]
+                available_tiles = clear_tiles(walk, available_tiles)
 
-        self.print_maze_terrain()
+                pbar.update(len(walk))
 
-    def random_walk(self, start_tile):
+            while not np.all(available_tiles.terrain):
+                walk = self.random_walk(random_wall_tile(available_tiles))
+                clear_tiles(walk, self.maze)
+                walk = [adjacent_tiles(x, self.maze) for x in walk]
+                walk = [x for sublist in walk for x in sublist]
+                available_tiles = clear_tiles(walk, available_tiles)
+
+                pbar.update(len(walk))
+
+        print_maze_terrain(self.maze)
+
+    def random_walk(self, start_tile: Tile) -> List[Tile]:
         """Preform a random walk along valid wall tiles return a path"""
 
         path = [start_tile]
         curr_tile = start_tile
 
-        while not self.maze_terrain[curr_tile.x][curr_tile.y]:
-            next_tile = self.random_direction(curr_tile)
-            for tile in self.adjacent_tiles(curr_tile):
-                if self.maze_terrain[tile.x][tile.y]:
+        while not self.maze.terrain[curr_tile.x][curr_tile.y]:
+            next_tile = random_direction(curr_tile, self.maze)
+            for tile in adjacent_tiles(curr_tile, self.maze):
+                if self.maze.terrain[tile.x][tile.y]:
                     next_tile = tile
 
             if next_tile in path:
@@ -248,86 +263,92 @@ class Maze():
 
         return path
 
-    def __clear_zone(self, center):
-        """Clear the 3x3 zone around center tile"""
+    def is_wall(self, tile: Tile) -> bool:
+        """Return True if the provided tile is a wall in the provided maze"""
 
-        clear_zone = []
-        for i in range(-3, 3):
-            for j in range(-3, 3):
-                tile = Tile(i + center.x, j + center.y)
-                if self.valid_tile(tile):
-                    clear_zone.append(tile)
+        return not self.maze.terrain[tile.x][tile.y]
 
-        self.__clear_tiles(clear_zone)
 
-    def __clear_tiles(self, tiles, maze=None):
-        """Clear each tile in tiles, concurrency safe over the set of tiles"""
+def valid_tile(tile, maze: Maze) -> bool:
+    """Check for tile actually in maze"""
 
-        if maze is None:
-            maze = self.maze_terrain
+    if tile.x < 1 or tile.x >= maze.dim[0] - 1:
+        return False
+    if tile.y < 1 or tile.y >= maze.dim[1] - 1:
+        return False
+    return True
 
-        for tile in tiles:
-            if self.valid_tile(tile):
-                maze[tile.x][tile.y] = True
+def clear_tiles(tiles, maze: Maze) -> Maze:
+    """Clear each tile in tiles, concurrency safe over the set of tiles"""
 
-        return maze
+    for tile in tiles:
+        if valid_tile(tile, maze):
+            maze.terrain[tile.x][tile.y] = True
 
-    def random_wall_tile(self, maze):
-        """Return a random wall tile"""
+    return maze
 
-        available_tiles = np.column_stack((np.where(
-            maze == False)))
-        tile_pos = random.choice(available_tiles)
-        rand_tile = Tile(tile_pos[0], tile_pos[1])
+def clear_zone(center: Tile, maze: Maze, size: (int, int)=(3, 3)):
+    """Clear the 3x3 zone around center tile"""
 
-        return rand_tile
+    x, y = size
+    zone = []
+    for i in range(-x, x):
+        for j in range(-y, y):
+            tile = Tile(i + center.x, j + center.y)
+            if valid_tile(tile, maze):
+                zone.append(tile)
 
-    def random_direction(self, start_tile):
-        """Choose a random adjacent tile that is currently a wall"""
+    clear_tiles(zone, maze)
 
-        possible_tiles = self.adjacent_tiles(start_tile)
-        for tile in possible_tiles:
-            if not self.valid_tile(tile):
-                possible_tiles.remove(tile)
+def print_maze_terrain(maze: Maze):
+    """build and display a maze"""
 
-        if not possible_tiles:
-            raise ValueError('No valid moves')
-        else:
-            return random.choice(possible_tiles)
+    pyplot.figure(figsize=(10, 10))
+    pyplot.imshow(maze.terrain, cmap="Greys_r", interpolation='nearest')
+    pyplot.xticks([]), pyplot.yticks([])
+    pyplot.show()
 
-    def adjacent_tiles(self, start_tile):
-        """Returns a list of valid adjacent tiles"""
+def random_wall_tile(maze: Maze) -> Tile:
+    """Return a random wall tile"""
 
-        adjacent_tiles = []
-        if start_tile.y != self.dim[1] - 1:
-            adjacent_tiles.append(Tile(start_tile.x, start_tile.y + 1))
-        if start_tile.y != 0:
-            adjacent_tiles.append(Tile(start_tile.x, start_tile.y - 1))
-        if start_tile.x != self.dim[0] - 1:
-            adjacent_tiles.append(Tile(start_tile.x + 1, start_tile.y))
-        if start_tile.x != 0:
-            adjacent_tiles.append(Tile(start_tile.x - 1, start_tile.y))
+    available_tiles = np.column_stack((np.where(maze.terrain == False)))
+    tile_pos = random.choice(available_tiles)
+    rand_tile = Tile(tile_pos[0], tile_pos[1])
 
-        return adjacent_tiles
+    return rand_tile
 
-    def valid_tile(self, tile):
-        """Check for tile actually in maze"""
+def adjacent_tiles(start_tile: Tile, maze: Maze) -> List[Tile]:
+    """Returns a list of valid adjacent tiles"""
 
-        if tile.x < 1 or tile.x >= self.dim[0] - 1:
-            return False
-        if tile.y < 1 or tile.y >= self.dim[1] - 1:
-            return False
-        return True
+    tiles = []
+    if start_tile.y != maze.dim[1] - 1:
+        tiles.append(Tile(start_tile.x, start_tile.y + 1))
+    if start_tile.y != 0:
+        tiles.append(Tile(start_tile.x, start_tile.y - 1))
+    if start_tile.x != maze.dim[0] - 1:
+        tiles.append(Tile(start_tile.x + 1, start_tile.y))
+    if start_tile.x != 0:
+        tiles.append(Tile(start_tile.x - 1, start_tile.y))
 
-    def print_maze_terrain(self):
-        """build and display a maze"""
+    return tiles
 
-        pyplot.figure(figsize=(10, 10))
-        pyplot.imshow(self.maze_terrain, cmap="Greys_r", interpolation='nearest')
-        pyplot.xticks([]), pyplot.yticks([])
-        pyplot.show()
+def random_direction(start_tile: Tile, maze: Maze) -> Tile:
+    """Choose a random adjacent tile that is currently a wall"""
 
-    def is_wall(self, tile):
-        """Return True if the provided tile is a wall tile"""
+    possible_tiles = adjacent_tiles(start_tile, maze)
+    for tile in possible_tiles:
+        if not valid_tile(tile, maze):
+            possible_tiles.remove(tile)
 
-        return not self.maze_terrain[tile.x][tile.y]
+    if not possible_tiles:
+        raise ValueError('No valid moves')
+    else:
+        return random.choice(possible_tiles)
+
+def serialize_maze_json(maze: Maze, file_path: str):
+    """Store maze as json file"""
+
+    formatted_array = maze.terrain.tolist()
+    json.dump(formatted_array, codecs.open(
+        file_path, 'w', encoding='utf-8'), separators=(',', ':'),
+              sort_keys=True, indent=4)
