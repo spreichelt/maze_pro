@@ -94,7 +94,11 @@ class PlayerInterface():
 
     def __init__(self, dimensions: Tile, resource_allocation: (int, int, int)):
         self.__maze = MazeBuilder(dimensions, resource_allocation)
+        self.dimensions = dimensions
         self.player_pos = self.__maze.player_start
+
+    def get_maze(self):
+        return self.__maze.maze
 
     def move(self, dest_tile: Tile) -> Dict[Tile, int]:
         """Move player from current position to dest_tile with error checking
