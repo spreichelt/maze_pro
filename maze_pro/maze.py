@@ -94,11 +94,13 @@ class PlayerInterface():
 
     def __init__(self, dimensions: Tile, resource_allocation: (int, int, int)):
         self.__maze = MazeBuilder(dimensions, resource_allocation)
+        self.player_maze = Maze(np.zeros(dimensions, dtype=int), dimensions)
         self.dimensions = dimensions
         self.player_pos = self.__maze.player_start
+        self.update_player_maze(self.current_visible_tiles())
 
     def get_maze(self):
-        return self.__maze.maze
+        return self.__maze
 
     def move(self, dest_tile: Tile) -> Dict[Tile, int]:
         """Move player from current position to dest_tile with error checking
@@ -114,10 +116,19 @@ class PlayerInterface():
         if dest_tile in adjacent_tiles(self.player_pos, self.__maze.maze):
             self.player_pos = copy.copy(dest_tile)
         else:
-            raise ValueError(str(self.player_pos) + ' -> ' + str(dest_tile)
-                             + ' ILLEGAL MOVE')
+            if dest_tile != self.player_pos:
+                raise ValueError(str(self.player_pos) + ' -> ' + str(dest_tile)
+                                 + ' ILLEGAL MOVE')
 
-        return self.__discovered_tiles(dest_tile)
+        disc_tiles = self.__discovered_tiles(dest_tile)
+        self.update_player_maze(disc_tiles)
+        return disc_tiles
+
+    def update_player_maze(self, tiles: Dict[Tile, int]):
+        """Updates the players view of the maze with discovered tiles"""
+
+        for tile, tile_type in tiles.items():
+            self.player_maze.terrain[tile.x][tile.y] = tile_type
 
     def current_visible_tiles(self):
         """A public facing version of __discoverd_tiles that restricts the
@@ -199,6 +210,7 @@ class MazeBuilder():
         self.resource_allocation = resource_allocation
         self.player_start = None
         self.resources = Resources(resource_allocation)
+        self.construction_json = {}
 
         self.__build_maze()
 
@@ -211,13 +223,17 @@ class MazeBuilder():
         randomly build until no more tiles can be randomly selected.
 
         """
+        self.construction_json = {'color_map': {'seek': (100, 100, 100),
+                                                'reset': 'wall',
+                                                'clear': 'walkable'},
+                                 'speed': 1,
+                                 'steps': []}
 
         self.player_start = random_wall_tile(self.maze)
-        clear_zone(self.player_start, self.maze)
+        clear_zone(self.player_start, self.maze, self.construction_json)
         available_tiles = Maze(np.copy(self.maze.terrain), self.dim)
         available_tiles.terrain[0, :] = available_tiles.terrain[-1, :] = True
         available_tiles.terrain[:, 0] = available_tiles.terrain[:, -1] = True
-        print_maze_terrain(available_tiles)
 
         total_available_tiles = (np.size(available_tiles.terrain)
                                  - np.count_nonzero(available_tiles.terrain))
@@ -229,7 +245,7 @@ class MazeBuilder():
                 self.resources.place(tile)
 
                 walk = self.random_walk(tile)
-                clear_tiles(walk, self.maze)
+                clear_tiles(walk, self.maze, self.construction_json)
                 walk = [adjacent_tiles(x, self.maze) for x in walk]
                 walk = [x for sublist in walk for x in sublist]
                 available_tiles = clear_tiles(walk, available_tiles)
@@ -238,17 +254,21 @@ class MazeBuilder():
 
             while not np.all(available_tiles.terrain):
                 walk = self.random_walk(random_wall_tile(available_tiles))
-                clear_tiles(walk, self.maze)
+                clear_tiles(walk, self.maze, self.construction_json)
                 walk = [adjacent_tiles(x, self.maze) for x in walk]
                 walk = [x for sublist in walk for x in sublist]
                 available_tiles = clear_tiles(walk, available_tiles)
 
                 pbar.update(len(walk))
 
-        print_maze_terrain(self.maze)
-
     def random_walk(self, start_tile: Tile) -> List[Tile]:
         """Preform a random walk along valid wall tiles return a path"""
+
+        def construct(construction, path, color):
+            construction['steps'].append({color: []})
+            for tile in path:
+                construction['steps'][-1][color].append((tile.x, tile.y))
+
 
         path = [start_tile]
         curr_tile = start_tile
@@ -260,11 +280,15 @@ class MazeBuilder():
                     next_tile = tile
 
             if next_tile in path:
+                construct(self.construction_json, path, 'seek')
+                construct(self.construction_json,
+                        list(reversed(path[path.index(next_tile):])), 'reset')
                 path = path[:path.index(next_tile) + 1]
             else:
                 path.append(next_tile)
             curr_tile = next_tile
 
+        construct(self.construction_json, path, 'seek')
         return path
 
     def is_wall(self, tile: Tile) -> bool:
@@ -282,16 +306,22 @@ def valid_tile(tile, maze: Maze) -> bool:
         return False
     return True
 
-def clear_tiles(tiles, maze: Maze) -> Maze:
+def clear_tiles(tiles, maze: Maze, construction = None) -> Maze:
     """Clear each tile in tiles, concurrency safe over the set of tiles"""
 
     for tile in tiles:
         if valid_tile(tile, maze):
             maze.terrain[tile.x][tile.y] = True
 
+
+    if construction:
+        construction['steps'].append({'clear': []})
+        for tile in tiles:
+            construction['steps'][-1]['clear'].append((tile.x,
+                                                            tile.y))
     return maze
 
-def clear_zone(center: Tile, maze: Maze, size: (int, int)=(3, 3)):
+def clear_zone(center: Tile, maze: Maze, construction,  size: (int, int)=(3, 3)):
     """Clear the 3x3 zone around center tile"""
 
     x, y = size
@@ -302,7 +332,8 @@ def clear_zone(center: Tile, maze: Maze, size: (int, int)=(3, 3)):
             if valid_tile(tile, maze):
                 zone.append(tile)
 
-    clear_tiles(zone, maze)
+    clear_tiles(zone, maze, construction)
+    return zone
 
 def print_maze_terrain(maze: Maze):
     """build and display a maze"""

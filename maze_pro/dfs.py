@@ -6,57 +6,67 @@ import maze_pro.maze as maze
 class DFS():
     """A maze player that traverses the enviornment using DFS"""
 
-    def __init__(self, dimensions: (int, int),
-                 resource_allocation: (int, int, int)):
-        self.interface = maze.PlayerInterface(dimensions, resource_allocation)
-        self.maze = np.zeros(dimensions, dtype=int)
+    def __init__(self, dimensions, resources):
+        self.interface = maze.PlayerInterface(dimensions, resources)
         self.visited = {}
         self.path = []
-        self.direction = {'N': (0, 1), 'S': (0, -1), 'E': (1, 0), 'W': (-1, 0)}
+        self.direction = {'up': (0, -1), 'down': (0, 1), 
+                          'left': (-1, 0), 'right': (1, 0)}
 
     def step(self):
         """Return the next tile to visit"""
 
         possible_tiles = self.walkable_tiles()
-        dest = self.maze_dfs(possible_tiles)
+        direction, dest_tile = self.maze_dfs(possible_tiles)
 
-        observed_tiles = self.interface.move(dest)
-        self.update_maze(observed_tiles)
-        self.visited[dest] = self.visited[dest] + 1
-        self.path.append(dest)
+        self.interface.move(dest_tile)
+        self.visited[dest_tile] = self.visited[dest_tile] + 1
+        self.path.append(dest_tile)
+        return direction, dest_tile
 
     def maze_dfs(self, tiles: Dict[str, maze.Tile]) -> maze.Tile:
         """Select direction to travel according to DFS protocol"""
 
         dest = None
-        if 'N' in tiles and tiles['N'] not in self.visited:
-            dest = tiles['N']
-        elif 'E' in tiles and tiles['E'] not in self.visited:
-            dest = tiles['E']
-        elif 'W' in tiles and tiles['W'] not in self.visited:
-            dest = tiles['W']
-        elif 'S' in tiles and tiles['S'] not in self.visited:
-            dest = tiles['S']
+        direct = None
+        if 'up' in tiles and tiles['up'] not in self.visited:
+            dest, direct = tiles['up'], 'up'
+        elif 'left' in tiles and tiles['left'] not in self.visited:
+            dest, direct = tiles['left'], 'left'
+        elif 'right' in tiles and tiles['right'] not in self.visited:
+            dest, direct = tiles['right'], 'right'
+        elif 'down' in tiles and tiles['down'] not in self.visited:
+            dest, direct = tiles['down'], 'down'
 
         if dest:
             self.visited[dest] = 0
         else:
-            dest = self.backtrack()
+            direct, dest = self.backtrack()
 
-        return dest
+        return direct, dest
 
     def backtrack(self) -> maze.Tile:
         """Retrace path back to a tile with unvisited neighbors"""
 
         self.path.pop()
+        destination = self.path.pop()
+        direction = self.get_direction(destination)
 
-        return self.path.pop()
+        return direction, destination
 
-    def update_maze(self, observed_tiles: Dict[maze.Tile, int]) -> maze.Tile:
-        """Updates players view of the maze with data from last move"""
+    def get_direction(self, dest_tile: maze.Tile) -> str:
+        """Return the direction from the player position to the dest tile"""
 
-        for tile, tile_type in observed_tiles.items():
-            self.maze[tile.x][tile.y] = tile_type
+        x = dest_tile.x - self.interface.player_pos.x
+        y = dest_tile.y - self.interface.player_pos.y
+
+        for direction, offsets in self.direction.items():
+            if offsets == (x, y):
+                return direction
+
+        raise ValueError('Cannot move from '
+                         + str(self.interface.player_pos)
+                         + ' to ' + str(dest_tile))
 
     def walkable_tiles(self) -> Dict[str, maze.Tile]:
         """Return set of tiles adjacent to player that can be walked on"""
@@ -73,7 +83,7 @@ class DFS():
     def is_walkable(self, tile: maze.Tile) -> bool:
         """Return True if the given tile is not a wall"""
 
-        tile_value = self.maze[tile.x][tile.y]
+        tile_value = self.interface.player_maze.terrain[tile.x][tile.y]
         if tile_value == 3:
             return True
         if tile_value == 2:

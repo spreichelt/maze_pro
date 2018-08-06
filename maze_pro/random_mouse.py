@@ -12,7 +12,7 @@ class RobertFrostRandomMouse():
         self.maze = np.zeros(interface.dimensions, dtype=int)
         self.visited = {}
         self.path = []
-        self.direction = {'N': (0, -1), 'S': (0, 1), 'E': (1, 0), 'W': (-1, 0)}
+        self.direction = {'up': (0, -1), 'down': (0, 1), 'left': (1, 0), 'right': (-1, 0)}
 
     def step(self):
         """Return the next tile to visit"""
