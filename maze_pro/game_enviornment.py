@@ -27,27 +27,45 @@ class Sprite():
         self.move_counter = 0
         self.pos = [self.ai.interface.player_pos.x * 16,
                     self.ai.interface.player_pos.y * 16]
+        self.dest = self.ai.interface.player_pos
 
-    def move(self, direction: str):
-        """Shift the sprite 2 pixels in the provided direction"""
+    def move(self, display_surf: pygame.display):
+        """Shift the sprite 2 pixels in the provided direction
+
+        Return False if the current position is not a winning tile,
+        True if the current position is a winning tile. When the player
+        is on a winning tile, run an alternate animation
+
+        """
+
+        # If current position is a maze exit
+        if self.ai.interface.tile_type(self.ai.interface.player_pos) == 3:
+            if(self.reached_dest()):
+                self.win_animation(display_surf)
+                return True
+
+        if self.reached_dest():
+            self.direction, self.dest = self.ai.step()
 
         if self.move_counter == 2:
             self.move_counter = 0
         else:
             self.move_counter += 1
 
-        self.state = self.img_assets[direction][self.move_counter]
+        self.state = self.img_assets[self.direction][self.move_counter]
 
-        if direction == 'up':
+        if self.direction == 'up':
             self.pos[1] = self.pos[1] - 2
-        elif direction == 'down':
+        elif self.direction == 'down':
             self.pos[1] = self.pos[1] + 2
-        elif direction == 'left':
+        elif self.direction == 'left':
             self.pos[0] = self.pos[0] - 2
-        elif direction == 'right':
+        elif self.direction == 'right':
             self.pos[0] = self.pos[0] + 2
         else:
-            raise ValueError("Invalid direction " + direction)
+            raise ValueError("Invalid direction " + self.direction)
+
+        return False
 
     def reached_dest(self) -> bool:
         """Determine if the sprite has shifted completely to the destination"""
@@ -58,12 +76,24 @@ class Sprite():
             return False
         return True
 
+    def win_animation(self, display_surf):
+        """Preform a _victory dance_ style win animation"""
+
+        direct = ['down', 'right', 'up', 'left', 'down']
+        self.move_counter = 0
+        for direction in direct:
+            pygame.event.pump()
+            for i in range(3):
+                self.state = self.img_assets[direction][i]
+                display_surf.blit(self.state, (self.pos[0], self.pos[1]))
+                pygame.display.flip()
+
 
 class GameMaze:
     """Manage drawing of maze on screen"""
 
     def __init__(self, maze: maze_pro.maze.Maze,
-                 img_assets: List[pygame.image.load]):
+                 img_assets: List[pygame.image.load], mode):
         self.maze = maze
         self.mini_map = pygame.Surface((200, 200))
         self.resource = {'tiles': [], 'collected': 0, 'available': 0}
@@ -72,6 +102,7 @@ class GameMaze:
         self.count = 0
         self.maze_surf = self.draw_maze()
         self.mini_map.fill((0,0,0))
+        self.mode = mode
 
     def draw_maze(self):
         surf = pygame.Surface((1056, 800))
@@ -115,7 +146,10 @@ class GameMaze:
 
         # Draw found resource tiles
         for tile in self.resource['tiles']:
-            display_surf.blit(self.images['mineral'], (tile.x * 16, tile.y * 16))
+            if self.mode is "find_exit":
+                display_surf.blit(self.images['door'], (tile.x * 16, tile.y * 16))
+            else:
+                display_surf.blit(self.images['mineral'], (tile.x * 16, tile.y * 16))
 
     def draw_ui(self, surf: pygame.display):
         """draw the maze ui area"""
@@ -169,6 +203,27 @@ class GameMaze:
         display_surf.blit(resources_found, (830, 100))
         display_surf.blit(resources_collected, (830, 150))
         display_surf.blit(game_clock, (830, 200))
+
+    def win_animation(self, display_surf: pygame.display, player: Sprite):
+        """Win animation sequence"""
+
+        pygame.event.pump()
+        display_surf.blit(self.images['door'], (player.pos[0],
+                                                player.pos[1]))
+
+
+        myfont = pygame.font.Font('maze_pro/fonts/breathe_fire.otf', 50)
+
+        congrats = myfont.render("Congratulations!", True, (0, 0, 0))
+        display_surf.fill((100, 255, 50), (200, 380, 400, 80))
+        display_surf.blit(congrats, (250, 400))
+        pygame.display.flip()
+
+        tick = time.time()
+        while True:
+            pygame.event.wait()
+            if time.time() - tick > 5.0:
+                break
 
 
 class MazeConstructor:
@@ -320,7 +375,9 @@ class MazeConstructor:
 class App:
     """Drive the game"""
 
-    def __init__(self):
+    def __init__(self, mode, resources):
+        self.mode = mode
+        self.resources = resources
         self._running = True
         self._display_surf = None
         self.images = {}
@@ -352,7 +409,8 @@ class App:
         self.images = load_images(img_directory)
 
         self.game_maze = GameMaze(self.maze.maze,
-                                  self.images)
+                                  self.images,
+                                  self.mode)
 
         self.game_maze.draw_ui(self._display_surf)
         pygame.display.flip()
@@ -400,9 +458,9 @@ class App:
             pygame.event.pump()
             _ = pygame.key.get_pressed()
 
-            if self.player.reached_dest():
-                direct, _ = self.player.ai.step()
-            self.player.move(direct)
+            if self.player.move(self._display_surf):
+                self.game_maze.win_animation(self._display_surf, self.player)
+                self.on_cleanup()
             self.clock.tick(20)
 
             self.on_loop()
@@ -422,5 +480,6 @@ def load_images(directory):
     return images
 
 if __name__ == "__main__":
-    APP = App()
+    APP = App("find_exit")
     APP.on_execute()
+

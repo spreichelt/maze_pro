@@ -139,6 +139,15 @@ class PlayerInterface():
 
         return self.__discovered_tiles(self.player_pos)
 
+    def tile_type(self, tile):
+
+        if self.__resource_data(tile):
+            return 3
+        elif self.__maze.is_wall(tile):
+            return 1
+        else:
+            return 2
+
     def __discovered_tiles(self, pos):
         """Returns a dictionary of tiles obersvable from the provided position
 
@@ -148,14 +157,7 @@ class PlayerInterface():
 
         offsets = [(x, y) for x in range(-1, 2) for y in range(-1, 2)]
         tiles = [Tile(x + pos.x, y + pos.y) for (x, y) in offsets]
-        visited_tiles = {}
-        for tile in tiles:
-            if self.__resource_data(tile):
-                visited_tiles[tile] = 3
-            elif self.__maze.is_wall(tile):
-                visited_tiles[tile] = 1
-            else:
-                visited_tiles[tile] = 2
+        visited_tiles = {tile : self.tile_type(tile) for tile in tiles}
 
         return visited_tiles
 
