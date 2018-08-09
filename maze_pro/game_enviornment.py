@@ -28,6 +28,9 @@ class Sprite():
         self.pos = [self.ai.interface.player_pos.x * 16,
                     self.ai.interface.player_pos.y * 16]
         self.dest = self.ai.interface.player_pos
+        self.graph_surf = pygame.Surface((800, 800), pygame.SRCALPHA)
+        self.graph_surf.fill((0, 0, 0, 0))
+        self.last_drawn = self.pos[0] + 8, self.pos[1] + 8
 
     def move(self, display_surf: pygame.display):
         """Shift the sprite 2 pixels in the provided direction
@@ -39,6 +42,7 @@ class Sprite():
         """
 
         # If current position is a maze exit
+        self.update_graph()
         if self.ai.interface.tile_type(self.ai.interface.player_pos) == 3:
             if(self.reached_dest()):
                 self.win_animation(display_surf)
@@ -66,6 +70,68 @@ class Sprite():
             raise ValueError("Invalid direction " + self.direction)
 
         return False
+
+    def update_graph(self):
+        """Update graph surface overlay"""
+        if self.reached_dest() and self.is_node(self.ai.interface.player_pos):
+            self.update_node()
+        else:
+            self.update_edge()
+
+    def update_node(self):
+        x_pos = self.pos[0] + 8
+        y_pos = self.pos[1] + 8
+        pygame.draw.circle(self.graph_surf, (100, 150, 200), (x_pos, y_pos), 6)
+        self.color_trail()
+        self.last_drawn = x_pos, y_pos
+
+    def update_edge(self):
+        start = [a + 8 for a in self.pos]
+        if self.direction is 'left':
+            end = [start[0] - 2, start[1]]
+        elif self.direction is 'right':
+            end = [start[0] + 2, start[1]]
+        elif self.direction is 'down':
+            end = [start[0], start[1] + 2]
+        elif self.direction is 'up':
+            end = [start[0], start[1] - 2]
+
+        pygame.draw.line(self.graph_surf, (100, 150, 200), start, end, 1)
+
+    def is_node(self, pos):
+
+        def is_walkable(position):
+            if self.ai.interface.player_maze.terrain[position] != 1:
+                return True
+            else:
+                return False
+
+        tiles = {'up':(pos.x, pos.y - 1),
+                          'down':(pos.x, pos.y + 1),
+                          'left':(pos.x - 1, pos.y),
+                          'right':(pos.x + 1, pos.y)}
+
+        walkable = {direct : is_walkable(tiles[direct]) for direct in tiles.keys()}
+        num_true = sum(1 for condition in walkable.values() if condition)
+
+        if num_true is 1:
+            return True
+        elif (walkable['up'] or walkable['down']) and (walkable['left'] or walkable['right']):
+            return True
+
+        return False
+
+    def color_trail(self):
+        if self.last_drawn is None:
+            pass
+
+        pygame.draw.circle(self.graph_surf, (100, 200, 150), self.last_drawn, 6)
+        pygame.draw.line(self.graph_surf,
+                         (100, 200, 150),
+                         (self.last_drawn[0], self.last_drawn[1]),
+                         (self.pos[0] + 8, self.pos[1] + 8),
+                         1)
+
 
     def reached_dest(self) -> bool:
         """Determine if the sprite has shifted completely to the destination"""
@@ -101,6 +167,7 @@ class GameMaze:
         self.start_time = time.time()
         self.count = 0
         self.maze_surf = self.draw_maze()
+        self.graph_surf = self.draw_graph()
         self.mini_map.fill((0,0,0))
         self.mode = mode
 
@@ -109,7 +176,7 @@ class GameMaze:
         for index, maze_tile in numpy.ndenumerate(self.maze.terrain):
             if not maze_tile:
                 surf.blit(self.images['wall'], (index[0] * 16,
-                                                        index[1] * 16))
+                                                index[1] * 16))
             else:
                 surf.blit(self.images['walkable'], (index[0] * 16,
                                                             index[1] * 16))
@@ -118,23 +185,80 @@ class GameMaze:
 
         return surf
 
+    def draw_graph(self):
+
+        surf = pygame.Surface((1056, 800))
+        surf.fill((0, 0, 0))
+        for index, maze_tile in numpy.ndenumerate(self.maze.terrain):
+            if maze_tile:
+                x_pos = index[0] * 16 + 8
+                y_pos = index[1] * 16 + 8
+                surf, need_node = self.draw_graph_edges(surf, index)
+                if need_node:
+                    pygame.draw.circle(
+                            surf, (255, 255, 255), (x_pos, y_pos), 6)
+
+        self.draw_ui(surf)
+        self._draw_mini_map(surf)
+
+        return surf
+
+    def draw_graph_edges(self, surf, node):
+
+        x_pos = node[0] * 16 + 8
+        y_pos = node[1] * 16 + 8
+        edges = {direct : False for direct in ['up', 'down', 'left', 'right']}
+        if self.maze.terrain[node[0] + 1][node[1]]:
+            edges['down'] = True
+            pygame.draw.line(
+                surf, (255, 255, 255), (x_pos, y_pos), (x_pos + 8, y_pos), 1)
+        if self.maze.terrain[node[0] - 1][node[1]]:
+            edges['up'] = True
+            pygame.draw.line(
+                surf, (255, 255, 255), (x_pos, y_pos), (x_pos - 8, y_pos), 1)
+        if self.maze.terrain[node[0]][node[1] + 1]:
+            edges['left'] = True
+            pygame.draw.line(
+                surf, (255, 255, 255), (x_pos, y_pos), (x_pos, y_pos + 8), 1)
+        if self.maze.terrain[node[0]][node[1] - 1]:
+            edges['right'] = True
+            pygame.draw.line(
+                surf, (255, 255, 255), (x_pos, y_pos), (x_pos, y_pos - 8), 1)
+
+        num_true = sum(1 for condition in edges.values() if condition)
+        need_node = False
+        if num_true is 1:
+            need_node = True
+        elif (edges['up'] or edges['down']) and (edges['left'] or edges['right']):
+            need_node = True
+
+        return surf, need_node
+
     def draw(self, display_surf: pygame.display,
              visible_tiles: Dict[maze_pro.maze.Tile, int],
-             pos: maze_pro.maze.Tile):
+             pos: maze_pro.maze.Tile,
+             mode: str):
         """Iterate over the maze.terrain and load appropiate tile images"""
 
 
         # Draw maze
         self.update_mini_map(visible_tiles)
-        display_surf.blit(self.maze_surf, (0, 0))
+        if mode is "maze":
+            display_surf.blit(self.maze_surf, (0, 0))
+        elif mode is "graph":
+            display_surf.blit(self.graph_surf, (0, 0))
+        else:
+            raise ValueError("Invalid game mode: " + mode)
+
         self.update_stats(display_surf)
 
-        # Create shaded regiong + sprites vision circle
+        # Create shaded region + sprites vision circle
         display_fog = self.images['fog'].copy()
         pygame.draw.circle(display_fog, (0, 0, 0, 0), (pos[0] + 8, pos[1] + 8),
                            random.randint(32, 34), 0)
-
-        display_surf.blit(display_fog, (0, 0))
+        
+        if mode is "maze":
+            display_surf.blit(display_fog, (0, 0))
 
         # Illuminate found resource tiles
         for tile, tile_type in visible_tiles.items():
@@ -385,6 +509,7 @@ class App:
         self.game_maze = None
         self.player = None
         self.clock = pygame.time.Clock()
+        self.display_mode = "maze"
 
     def on_init(self):
         """Additional initialization steps"""
@@ -438,9 +563,14 @@ class App:
         self._display_surf.fill((0, 0, 255))
         self.game_maze.draw(self._display_surf,
                             self.player.ai.interface.current_visible_tiles(),
-                            self.player.pos)
-        self._display_surf.blit(self.player.state,
-                                (self.player.pos[0], self.player.pos[1]))
+                            self.player.pos,
+                            self.display_mode)
+        if self.display_mode is 'maze':
+            self._display_surf.blit(self.player.state,
+                                    (self.player.pos[0], self.player.pos[1]))
+        elif self.display_mode is 'graph':
+            self._display_surf.blit(self.player.graph_surf, (0, 0))
+
         pygame.display.flip()
 
     def on_cleanup(self):
@@ -456,7 +586,11 @@ class App:
 
         while self._running:
             pygame.event.pump()
-            _ = pygame.key.get_pressed()
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_g]:
+                self.display_mode = "graph"
+            elif keys[pygame.K_m]:
+                self.display_mode = "maze"
 
             if self.player.move(self._display_surf):
                 self.game_maze.win_animation(self._display_surf, self.player)
