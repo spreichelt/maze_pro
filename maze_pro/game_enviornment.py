@@ -16,14 +16,43 @@ pygame.init()
 pygame.mixer.quit()
 
 class Sprite():
-    """An animated character that is displayed traversing the maze"""
+    """An animated character that is displayed traversing the maze
 
-    def __init__(self, img_assets: List[pygame.Surface]):
+    Members:
+        img_assets: a dictionary mapping image labels to pygame.Surfaces
+        state: The current image used to render sprite
+        direction: The direction the spite is traveling to reach destination
+        ai: A class implementing a step() function that returns next destination
+        move_counter: Used to cycle images in animation
+        pos: The sprites position (in pixels)
+        dest: The destination returned by ai.step()
+        graph_surf: Surface displaying sprites movement by coloring a graph
+        last_drawn: Used to differentiate where the sprite is v. where it has been
+
+    Methods:
+        move(): Animates movement of sprite, and drawing of graph according to 
+            ai.step() instructions
+        update_graph(): Determines whether to draw a node or edge and calls the
+            appropiate function
+        update_node(): Colors the node at the sprite position
+        update_edge(): Colors the edge at the sprite position
+        is_node(): used to determine is the sprite is on a node or an edge
+        color_trail(): Restores the sprites previous position to a different color,
+            differentiating where the sprite is v. where it has been
+        reached_dest(): Determine if the sprites animation sequence has brought it
+            to the destination tile
+        win_animation(): Preform an animation sequence when the sprite has reached
+            the maze exit
+
+ 
+    """
+
+    def __init__(self, img_assets: List[pygame.Surface], resources):
 
         self.img_assets = img_assets
         self.state = img_assets['up'][0]
         self.direction = 'up'
-        self.ai = dfs.DFS((50, 50), (30, 1, 1))
+        self.ai = dfs.DFS((50, 50), resources)
         self.move_counter = 0
         self.pos = [self.ai.interface.player_pos.x * 16,
                     self.ai.interface.player_pos.y * 16]
@@ -131,7 +160,6 @@ class Sprite():
                          (self.last_drawn[0], self.last_drawn[1]),
                          (self.pos[0] + 8, self.pos[1] + 8),
                          1)
-
 
     def reached_dest(self) -> bool:
         """Determine if the sprite has shifted completely to the destination"""
@@ -524,7 +552,7 @@ class App:
             images = [img for key, img in temp.items() if direction in key]
             sprite_img_assets[direction] = images
 
-        self.player = Sprite(sprite_img_assets)
+        self.player = Sprite(sprite_img_assets, self.resources)
         self.maze = self.player.ai.interface.get_maze()
 
 
