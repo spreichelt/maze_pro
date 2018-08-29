@@ -1,31 +1,29 @@
 # Maze Pro
 A game experience designed for use in teaching programming concepts from basic programming to training AI's, an advanced path finding algorithms.
 
-### Current State of the Project:
-The project is in an early stage where the basic building blocks are still under construction. 
+## Getting started
 
-#### Demo
-A rudimentary demo is available on the DEMO branch that displays a randomly constructed maze, then shows a simple agent (near-aimlessly) traversing the maze.
-In order to use the demo:
+### Using the dockerfile
+**Note running a GUI from a dockerimage is incredibly slow**
 
-1. Clone repository
-2. Navigate to the top level directory of the repository
-3. Run the test script, maze_pro.py:
+- Navigate to the root of the project directory
+- `docker build --rm -f Dockerfile -t maze_pro:latest .`
+- Allow docker to access the host X11 display
+    + Linux:
+        *`docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix \ -e DISPLAY=unix$DISPLAY ple /bin/bash`
 
-    ```python maze_pro.py```    
+    + MacOS
+        * install [Xquartz](https://www.xquartz.org/)
+        * Open Xquartz, navigate to prefrences > security and check both boxes
+        * Restart Xquartz
+        * In terminal:
+        * `xhost + 127.0.0.1`
+        * `docker run -e DISPLAY=docker.for.mac.localhost:0 jess/firefox`
 
-Use the provided requirements.txt to ensure all dependencies are captured
+- Run the pygame demo
+    + `docker run -t maze_pro python3.7 maze_pro.py`
 
-#### Independent usage
-The master branch contains the most recent working version of the project. The **maze.py** and **maze_player.py** classes contain the basic functionality of the project. A **maze_player.Player()** can interact with a **maze.Maze()** through the **maze.PlayerInterface()**.
 
-### TODO
-- Refactor **maze_player.Player()** to allow for a parameterized step function. The step function should implement everything required to return the next tile an agent will move to when queried, using only the information available through the maze.PlayerInterface().
 
-- Create step() functions that implement more intelligent traversals, including interaction with maze resources (mining / returning to home)
 
-- Implement a resource collection point where the player can deposit collected resources
 
-- Improve the demo animation color scheme using a custom color map.
-
-- Create a demo that uses Jupyter Notebooks, specifically make google colab use seamless
