@@ -23,7 +23,13 @@ A game experience designed for use in teaching programming concepts from basic p
 - Run the pygame demo
     + `docker run -t maze_pro python3.7 maze_pro.py`
 
+### Using install.sh
+**Tested using Ubuntu 16.04**
 
+- Navigate to the root of the project directory
+- execute the install sh from command line: `sudo ./install.sh`
+- Run the pygame demo:
+    + python3.7 maze_pro.py
 
 
 
