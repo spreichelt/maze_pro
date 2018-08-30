@@ -1,7 +1,37 @@
-# Maze Pro
+# Maze Pro <!-- omit in toc -->
 A game experience designed for use in teaching programming concepts from basic programming to training AI's, an advanced path finding algorithms.
 
+## Table of Contents <!-- omit in toc -->
+- [Getting started](#getting-started)
+    - [Using Pipenv (preferred)](#using-pipenv-preferred)
+    - [Using the dockerfile](#using-the-dockerfile)
+    - [Using install.sh](#using-installsh)
 ## Getting started
+
+### Using Pipenv (preferred)
+- Install python using homebrew:
+
+        brew install python
+
+- Install pipenv using pip:
+  
+        python3.7 -m pip install pipenv
+
+- Install required dependencies using the included Pipfile. Navigate to the projects root directory and:
+
+        pipenv install
+
+- To load the environment use:
+
+        pipenv shell
+
+You are now good to go! Run the project demo with:
+
+        python maze_pro.py
+
+Alternatively without first loading the pipenv you can run from your base shell using:
+
+        pipenv run python maze_pro.py
 
 ### Using the dockerfile
 **Note running a GUI from a dockerimage is incredibly slow**
