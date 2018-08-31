@@ -3,18 +3,25 @@ A game experience designed for use in teaching programming concepts from basic p
 
 ## Table of Contents <!-- omit in toc -->
 - [Getting started](#getting-started)
-    - [Using Pipenv (preferred)](#using-pipenv-preferred)
-    - [Using the dockerfile](#using-the-dockerfile)
-    - [Using install.sh](#using-installsh)
+        - [Using Pipenv (preferred)](#using-pipenv-preferred)
+        - [Using the dockerfile](#using-the-dockerfile)
+        - [Using install.sh](#using-installsh)
 ## Getting started
 
 ### Using Pipenv (preferred)
-- Install python using homebrew:
+- Install python (macOS)
 
         brew install python
 
+- Install python (Ubuntu)
+ 
+        apt-get update && add-apt-repository ppa:deadsnakes/ppa
+        apt-get update && apt-get install python3.7
+        apt-get update && apt-get install python3-pip
+
+
 - Install pipenv using pip:
-  
+
         python3.7 -m pip install pipenv
 
 - Install required dependencies using the included Pipfile. Navigate to the projects root directory and:
@@ -39,7 +46,7 @@ Alternatively without first loading the pipenv you can run from your base shell 
 - Navigate to the root of the project directory
 - `docker build --rm -f Dockerfile -t maze_pro:latest .`
 - Allow docker to access the host X11 display
-    + Linux:
++ Linux:
         *`docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix \ -e DISPLAY=unix$DISPLAY ple /bin/bash`
 
     + MacOS
