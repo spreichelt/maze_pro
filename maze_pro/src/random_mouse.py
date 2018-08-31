@@ -1,7 +1,7 @@
 import random
 from typing import List, Dict
 import numpy as np
-import maze_pro.maze as maze
+import maze as maze
 
 class RobertFrostRandomMouse():
     """Handles player data and interation with maze"""

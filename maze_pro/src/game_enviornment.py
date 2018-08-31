@@ -9,8 +9,8 @@ import numpy
 import pygame.locals
 import pygame
 sys.path.append('..')
-import maze_pro.dfs as dfs
-import maze_pro.maze
+import dfs as dfs
+import maze
 pygame.font.init()
 pygame.init()
 pygame.mixer.quit()
@@ -186,7 +186,7 @@ class Sprite():
 class GameMaze:
     """Manage drawing of maze on screen"""
 
-    def __init__(self, maze: maze_pro.maze.Maze,
+    def __init__(self, maze: maze.Maze,
                  img_assets: List[pygame.image.load], mode):
         self.maze = maze
         self.mini_map = pygame.Surface((200, 200))
@@ -263,8 +263,8 @@ class GameMaze:
         return surf, need_node
 
     def draw(self, display_surf: pygame.display,
-             visible_tiles: Dict[maze_pro.maze.Tile, int],
-             pos: maze_pro.maze.Tile,
+             visible_tiles: Dict[maze.Tile, int],
+             pos: maze.Tile,
              mode: str):
         """Iterate over the maze.terrain and load appropiate tile images"""
 
@@ -338,7 +338,7 @@ class GameMaze:
 
         self.count += 1
         display_time = time.time()
-        myfont = pygame.font.Font('maze_pro/fonts/breathe_fire.otf', 20)
+        myfont = pygame.font.Font('maze_pro/assets/fonts/breathe_fire.otf', 20)
         tiles_traversed = myfont.render(
             'Tiles Traversed: ' + str(self.count // 8), True, (0, 0, 0))
         resources_found = myfont.render(
@@ -364,7 +364,7 @@ class GameMaze:
                                                 player.pos[1]))
 
 
-        myfont = pygame.font.Font('maze_pro/fonts/breathe_fire.otf', 50)
+        myfont = pygame.font.Font('maze_pro/assets/fonts/breathe_fire.otf', 50)
 
         congrats = myfont.render("Congratulations!", True, (0, 0, 0))
         display_surf.fill((100, 255, 50), (200, 380, 400, 80))
@@ -485,7 +485,7 @@ class MazeConstructor:
 
     def display_controls(self):
 
-        myfont = pygame.font.Font('maze_pro/fonts/breathe_fire.otf', 20)
+        myfont = pygame.font.Font('maze_pro/assets/fonts/breathe_fire.otf', 20)
         skip_step = myfont.render(
                 's: skip the current step', True, (0, 0, 0))
         next_clear = myfont.render(
@@ -509,7 +509,7 @@ class MazeConstructor:
         if color is 'seek':
             self.statistics['visited_tiles'] += len(tiles)
 
-        myfont = pygame.font.Font('maze_pro/fonts/breathe_fire.otf', 20)
+        myfont = pygame.font.Font('maze_pro/assets/fonts/breathe_fire.otf', 20)
         cleared = myfont.render(
                 'Tiles Cleared: ' + str(self.statistics['cleared_tiles']),
                 True, (0, 0, 0))
@@ -545,7 +545,7 @@ class App:
         self._display_surf = pygame.display.set_mode(
             (1056, 800), pygame.HWSURFACE)
 
-        img_directory = 'maze_pro/img_assets/sprite_sheets/link/'
+        img_directory = 'maze_pro/assets/img/sprite_sheets/link/'
         temp = load_images(img_directory)
         sprite_img_assets = {}
         for direction in ['up', 'down', 'left', 'right']:
@@ -558,7 +558,7 @@ class App:
 
         self._running = True
 
-        img_directory = 'maze_pro/img_assets/enviornment/'
+        img_directory = 'maze_pro/assets/img/enviornment/'
         self.images = load_images(img_directory)
 
         self.game_maze = GameMaze(self.maze.maze,

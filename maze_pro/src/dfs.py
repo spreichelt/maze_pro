@@ -1,7 +1,7 @@
 import random
 from typing import List, Dict
 import numpy as np
-import maze_pro.maze as maze
+import maze as maze
 
 class DFS():
     """A maze player that traverses the enviornment using DFS"""
