@@ -4,7 +4,30 @@ import numpy as np
 import maze as maze
 
 class DFS():
-    """A maze player that traverses the enviornment using DFS"""
+    """A maze player that traverses the environment using DFS
+    
+    Attributes:
+        interface: a PlayerInterface object
+        visited: A dictionary of the form Tile:Int where Tile is a location in
+            the maze and int is the number of times the player has been
+            to the tile.
+        path: A stack that assists DFS, contains a sequence of tiles from the
+            start position to the current position with all backtracked
+            tiles popped from the stack.
+        direction: A dictionary mapping coordinate shifts in the matrix
+            representation of the maze to strings representing direction.
+
+    Methods:
+        step: Preform a single move to an adjacent tile, returning the tile and
+            direction of the move.
+        maze_dfs: Preform the logic of DFS. Given current tile and the visited
+            attribute select an unvisited tile or invoke backtrack.
+        backtrack: Pop the path stack returning this tile and its direction.
+        get_direction: Given a source and target tile that are a single step
+            apart, return the direction from source to target.
+        walkable_tiles: Return the set of walkable tile from the player position.
+        is_walkable: Return true if given tile is not a wall.
+    """
 
     def __init__(self, dimensions, resources):
         self.interface = maze.PlayerInterface(dimensions, resources)

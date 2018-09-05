@@ -29,16 +29,18 @@ class Tile:
         return hash((self.x, self.y))
 
 class Resources():
-    """Handles placement, tracking, and mining of resources in a maze
+    """Preform placement, tracking, and mining of resources in a maze
 
-    Members:
-        stockpile (int): The total amount of resources available for placement
-        __min (int): Minimum resource that can be placed in one location
-        __max (int): Maximum resource that can be placed in one location
+    Attributes:
+        stockpile: The total amount of resources available for placement.
+        __min: Minimum resource that can be placed in one location.
+        __max: Maximum resource that can be placed in one location.
+        locations: Dictionary of the form Tile:Int where tile is a maze location
+            and Int is the amount of resource at that location.
 
     Methods:
-        place(): Place random amount of resource at provided location
-        mine(): Simulate mining resource
+        place: Place random amount of resource at provided location
+        mine: Simulate mining resource
     """
 
     def __init__(self, resource_allocation: (int, int, int)):
@@ -176,32 +178,30 @@ class PlayerInterface():
 class MazeBuilder():
     """Random construction of a data structure representing a maze
 
-    Members:
-        dim: Dimensions of a maze (x, y)
-        terrain: A Maze dataclass object
+    Attributes:
+        dim: Dimensions of the maze (x, y).
+        terrain: A Maze dataclass object.
         resource_allocation: Data used to construct a Resource class to manage
-                             available resources in maze
-
-        player_start: The starting location for players traversing the maze
-        resources: A Resource class object
+            available resources in maze.
+        player_start: The starting location for players traversing the maze.
+        resources: A Resource class object.
 
     Methods:
-        __build_maze(): Drives the random processes that constuct a maze
-        random_walk(): Preform a random walk from provided tile until a tile
-                       that is not a wall is discovered
-        __clear_zone(): Clear tiles in a 3x3 square centered around the
-                        provided tile
-        __clear_tiles(): Flip all tiles to True in the provided list of tiles
-        random_wall_tile(): Return a randomly selected wall tile
-        random_direction(): Return a randomly selected wall tile adjacent to
-                            the paramater tile
-        adjacent_tiles(): Return a list of valid adjacent tiles that are in
-                          walkable directions (North/South/East/West)
-        valid_tiles(): Return True if tile is within the boundry of the maze
-        print_maze_terrain(): Display maze such that wall tiles are black and
-                              walkable tiles are white
-        is_wall(): Return True if the provided tile is a wall tile
-
+        __build_maze: Drive the random processes that construct a maze.
+        random_walk: Preform a random walk from provided tile until a tile
+            that is not a wall is discovered.
+        __clear_zone: Clear tiles in a 3x3 square centered around the
+            provided tile.
+        __clear_tiles: Set all provided tiles to True (walkable) in the terrain.
+        random_wall_tile: Return a randomly selected wall tile.
+        random_direction: Return a randomly selected wall tile adjacent to
+            the paramater tile.
+        adjacent_tiles: Return a list of valid adjacent tiles that are in
+            walkable directions (up/down/left/right).
+        valid_tiles: Return True if tile is within the boundary of the maze.
+        print_maze_terrain: Display maze using matplotlib such that wall tiles 
+            are black and walkable tiles are white.
+        is_wall: Return True if the provided tile is a wall tile.
     """
 
     def __init__(self, dimensions: (int, int),

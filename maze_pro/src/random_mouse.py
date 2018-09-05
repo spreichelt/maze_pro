@@ -4,7 +4,30 @@ import numpy as np
 import maze as maze
 
 class RobertFrostRandomMouse():
-    """Handles player data and interation with maze"""
+    """A maze player that traverses the maze randomly.
+
+    The randomness has a simple heuristic requiring the player to go in
+    the direction "least traveled," while breaking ties randomly.
+
+    Attributes:
+        interface: A PlayerInterface object.
+        position: The current position of the player.
+        maze: A maze constructed with knowledge of where the player has been.
+        visited: A dictionary mapping a Tile to the number of times the player
+            has been to the given Tile.
+        path: A list containing the ordered sequence of tiles visited.
+        direction: A dictionary mapping coordinate shifts in the matrix
+            representation of the maze to strings representing direction.
+
+    Methods:
+        step: Preform a single move to an adjacent tile, returning the tile and
+            direction of the move.
+        update_maze: Update the local maze array with local information.
+        walkable_tiles: Return the set of walkable tile from the player position.
+        is_walkable: Return true if given tile is not a wall.
+        get_direction: Given a source and target tile that are a single step
+            apart, return the direction from source to target.
+    """
 
     def __init__(self, interface):
         self.interface = interface

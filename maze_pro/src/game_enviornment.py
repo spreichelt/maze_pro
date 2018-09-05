@@ -18,33 +18,32 @@ pygame.mixer.quit()
 class Sprite():
     """An animated character that is displayed traversing the maze
 
-    Members:
-        img_assets: a dictionary mapping image labels to pygame.Surfaces
-        state: The current image used to render sprite
-        direction: The direction the spite is traveling to reach destination
-        ai: A class implementing a step() function that returns next destination
-        move_counter: Used to cycle images in animation
-        pos: The sprites position (in pixels)
-        dest: The destination returned by ai.step()
-        graph_surf: Surface displaying sprites movement by coloring a graph
-        last_drawn: Used to differentiate where the sprite is v. where it has been
+    Attributes:
+        img_assets: A dictionary mapping image labels to pygame.Surfaces.
+        state: The current image being used to render the sprite.
+        direction: The direction the spite is currently traveling.
+        ai: A class implementing a step() function that returns next destination.
+        move_counter: Selects the correct image in animations.
+        pos: The sprites position (in pixels).
+        dest: The destination returned by ai.step().
+        graph_surf: Surface displaying sprites movement by coloring a graph.
+        last_drawn: Last pos. Used to differentiate where the sprite is vs where 
+            it has been in animation between a source and destination tile.
 
     Methods:
-        move(): Animates movement of sprite, and drawing of graph according to 
-            ai.step() instructions
-        update_graph(): Determines whether to draw a node or edge and calls the
-            appropiate function
-        update_node(): Colors the node at the sprite position
-        update_edge(): Colors the edge at the sprite position
-        is_node(): used to determine is the sprite is on a node or an edge
-        color_trail(): Restores the sprites previous position to a different color,
-            differentiating where the sprite is v. where it has been
-        reached_dest(): Determine if the sprites animation sequence has brought it
-            to the destination tile
-        win_animation(): Preform an animation sequence when the sprite has reached
-            the maze exit
-
- 
+        move: Animate movement of sprite according to destination returned by
+            ai.step()
+        update_graph: Determines whether to draw a node or edge and calls the
+            appropriate function.
+        update_node: Colors the node at the sprite position.
+        update_edge: Colors the edge at the sprite position.
+        is_node: Returns True if the current pos is on a node.
+        color_trail: Restores the sprites previous position to original color,
+            differentiating where the sprite is v. where it has been.
+        reached_dest: Determine if the sprites animation sequence has brought it
+            to the destination tile.
+        win_animation: Preform an animation sequence when the sprite has reached
+            the maze exit.
     """
 
     def __init__(self, img_assets: List[pygame.Surface], resources):
@@ -184,7 +183,33 @@ class Sprite():
 
 
 class GameMaze:
-    """Manage drawing of maze on screen"""
+    """Manage drawing of maze on screen
+
+    Attributes:
+        maze: A Maze class object.
+        mini_map: A 1/4 scale black and white surface updated with discovered
+            tiles where black is unknown or wall, white is known walkable.
+        images: A dictionary mapping a string label to an image asset.
+        start_time: The time the object is created.
+        count: A counter used to calculate game statistics.
+        maze_surf: A pygame.Surface of the main maze.
+        graph_surf: A pygame.Surface translating the main maze to a graph.
+        mode: A string representing the game mode.
+
+    Methods:
+        draw_maze: Construct the maze surface from information in the maze object.
+        draw_graph: Construct the surface representing the maze as a graph.
+        draw_graph_edges: Draw edges to walkable tiles from a given tile
+            position, and return a boolean signaling if a node must also be drawn.
+        draw: Render the appropriate surface and additional UI assets. Draws
+            the entire game screen including statistics, maze, and mini_map.
+        draw_ui: Add the UI region to the paramaterized surface.
+        update_mini_map: Updates mini_map surface with visible tile information.
+        _draw_mini_map: Initialize surface with mini_map blacked out.
+        update_stats: Calculate game statistics and render on screen.
+        win_animation: Preform an animated sequence when player achieves a
+            win condition.
+    """
 
     def __init__(self, maze: maze.Maze,
                  img_assets: List[pygame.image.load], mode):
@@ -200,6 +225,10 @@ class GameMaze:
         self.mode = mode
 
     def draw_maze(self):
+        """Construct a pygame.Surface and load appropriate images to represent
+
+        the maze using the maze_terrain object."""
+        
         surf = pygame.Surface((1056, 800))
         for index, maze_tile in numpy.ndenumerate(self.maze.terrain):
             if not maze_tile:
@@ -214,6 +243,9 @@ class GameMaze:
         return surf
 
     def draw_graph(self):
+        """Construct a pygame.Surface and draw a graph representing the maze
+
+        using the maze_terrain object"""
 
         surf = pygame.Surface((1056, 800))
         surf.fill((0, 0, 0))
@@ -232,6 +264,15 @@ class GameMaze:
         return surf
 
     def draw_graph_edges(self, surf, node):
+        """Use maze_terrain object to draw all edges from the provided node
+
+        Args:
+            surf: a pygame.Surface
+            node: an index into the maze_terrain 
+        Return:
+            Return the input surface with appropriate edges, and a boolean
+            value informing whether or not the node needs to be drawn.
+        """
 
         x_pos = node[0] * 16 + 8
         y_pos = node[1] * 16 + 8
@@ -266,8 +307,14 @@ class GameMaze:
              visible_tiles: Dict[maze.Tile, int],
              pos: maze.Tile,
              mode: str):
-        """Iterate over the maze.terrain and load appropiate tile images"""
+        """Iterate over the maze.terrain and load appropriate tile images.
 
+        Args:
+            display_surf: The main display for game.
+            visible_tiles: Set of tiles currently visible to the sprite.
+            pos: The sprites current tile position.
+            mode: String representing the mode of the game, maze or graph.
+        """
 
         # Draw maze
         self.update_mini_map(visible_tiles)
@@ -304,7 +351,14 @@ class GameMaze:
                 display_surf.blit(self.images['mineral'], (tile.x * 16, tile.y * 16))
 
     def draw_ui(self, surf: pygame.display):
-        """draw the maze ui area"""
+        """Draw the user interface on the games main display
+    
+        Args:
+            surf: The main game display surface.
+
+        Return:
+            After drawing the user interface, return the surf with this addition.
+        """
 
         for x in range(800, 1056, 16):
             for y in range(0, 800, 16):
@@ -316,6 +370,11 @@ class GameMaze:
         return surf
 
     def update_mini_map(self, visible_tiles):
+        """Add any newly discovered tiles to the minimap on maze_surf
+
+        Args:
+            visible_tiles: The tiles currently visible to the player.
+        """
         for tile, tile_type in visible_tiles.items():
             if tile_type == 2:
                 self.maze_surf.blit(
@@ -327,14 +386,22 @@ class GameMaze:
                         temp, (tile.x * 4 + 828, tile.y * 4 + 572))
 
     def _draw_mini_map(self, display_surf: pygame.display):
-        """Redraw minimap"""
+        """Initialize the minimap in appropriate location
+        
+        Args:
+            display_surf: The main game display
+        """
 
         for y in range(572, 772, 4):
             for x in range(828, 1028, 4):
                 display_surf.fill((0, 0, 0), (x, y, 4, 4))
 
     def update_stats(self, display_surf: pygame.display):
-        """Update the game statistics displayed on screen"""
+        """Update the game statistics displayed on screen
+
+        Args:
+            display_surf: The main game display
+        """
 
         self.count += 1
         display_time = time.time()
@@ -357,12 +424,16 @@ class GameMaze:
         display_surf.blit(game_clock, (830, 200))
 
     def win_animation(self, display_surf: pygame.display, player: Sprite):
-        """Win animation sequence"""
+        """Preform a win animation sequence.
+        
+        Args:
+           display_surf: The main game display. 
+           player: The Sprite object rendering the player
+        """
 
         pygame.event.pump()
         display_surf.blit(self.images['door'], (player.pos[0],
                                                 player.pos[1]))
-
 
         myfont = pygame.font.Font('maze_pro/assets/fonts/breathe_fire.otf', 50)
 
@@ -378,8 +449,34 @@ class GameMaze:
                 break
 
 
-class MazeConstructor:
-    """Manages the animation of maze construction"""
+    class MazeConstructor:
+        """Preform maze construction animation.
+
+        Attributes:
+            color_map: A dictionary mapping types of actions preformed by a
+                construction algorithm to desired RBG colors defined by the maze
+                construction algorithm.
+            steps: Collection of steps preformed by the maze construction algorithm.
+            images: Set of images required to draw the game, e.g. walls and grass.
+            animate_flags: Dictionary mapping options a user can select to flags
+                signaling whether or not they have been selected.
+            display_surf: The main game display.
+            clock: A pygame.time.Clock() used to normalize the animation FPS.
+            statistics: Dictionary mapping statistics to display on screen along
+                with their current values. 
+
+        Methods:
+            restore_walls: Fill in tiles with wall tiles that were in a temporary 
+                state. When an algorithm explores and fails in a path.
+            color_tile: Given a tile and a color set the tile to the appropriate
+                color. Note that color can be a literal RBG tuple or reference
+                an img.
+            read_keys: Check for user input and set animate_flags accordingly.
+            animation_loop: The main loop animating the contraction of the maze.
+            animate_step: Animate a single step from the collection steps.
+            display_controls: Render the available controls on screen.
+            update_statistics: Update real time progress of the maze construction.
+        """
 
     def __init__(self, construction_data, img_assets, display_surf):
         self.color_map = construction_data['color_map']
@@ -525,7 +622,30 @@ class MazeConstructor:
 
 
 class App:
-    """Drive the game"""
+    """Main entrypoint for the game driving the animation process
+    
+    Attributes:
+        mode: The user selected game mode.
+        resources: Specifications for contracting a maze.Resources object.
+        _running: Boolean flag signaling if the game should remain active.
+        _display_surf: The main pygame display for the game.
+        images: A dictionary of image assets.
+        maze: a maze.Maze object.
+        game_maze: a GameMaze object.
+        player: A Sprite object.
+        clock: a pygame.time.Clock used to throttle game FPS.
+        display_mode: String signaling if maze should be drawn as a maze or graph.
+
+    Methods:
+        on_init: Handle additional initialization steps not possible in __init__.
+        on_event: Handle events triggered during execution.
+        on_loop: Call at every iteration of on_execute.
+        on_render: Handle process of rendering appropriate surfaces on screen.
+        on_cleanup: Preform a graceful close of the application.
+        on_execute: Process user input and track events related to player
+            movement.
+        load_images: Load all image assets into the images dictionary.
+    """
 
     def __init__(self, mode, resources):
         self.mode = mode
