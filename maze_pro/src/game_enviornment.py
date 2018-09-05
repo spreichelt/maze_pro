@@ -24,7 +24,7 @@ class Sprite():
         direction: The direction the spite is traveling to reach destination
         ai: A class implementing a step() function that returns next destination
         move_counter: Used to cycle images in animation
-        pos: The sprites position (in pixels)
+        pos: The sprites position (in pixels) as a maze.Tile object
         dest: The destination returned by ai.step()
         graph_surf: Surface displaying sprites movement by coloring a graph
         last_drawn: Used to differentiate where the sprite is v. where it has been
@@ -33,7 +33,7 @@ class Sprite():
         move(): Animates movement of sprite, and drawing of graph according to 
             ai.step() instructions
         update_graph(): Determines whether to draw a node or edge and calls the
-            appropiate function
+            appropriate function
         update_node(): Colors the node at the sprite position
         update_edge(): Colors the edge at the sprite position
         is_node(): used to determine is the sprite is on a node or an edge
@@ -54,12 +54,12 @@ class Sprite():
         self.direction = 'up'
         self.ai = dfs.DFS((50, 50), resources)
         self.move_counter = 0
-        self.pos = [self.ai.interface.player_pos.x * 16,
-                    self.ai.interface.player_pos.y * 16]
+        self.pos = Tile(self.ai.interface.player_pos.x * 16,
+                        self.ai.interface.player_pos.y * 16)
         self.dest = self.ai.interface.player_pos
         self.graph_surf = pygame.Surface((800, 800), pygame.SRCALPHA)
         self.graph_surf.fill((0, 0, 0, 0))
-        self.last_drawn = self.pos[0] + 8, self.pos[1] + 8
+        self.last_drawn = self.pos.x + 8, self.pos.y + 8
 
     def move(self, display_surf: pygame.display):
         """Shift the sprite 2 pixels in the provided direction
@@ -88,13 +88,13 @@ class Sprite():
         self.state = self.img_assets[self.direction][self.move_counter]
 
         if self.direction == 'up':
-            self.pos[1] = self.pos[1] - 2
+            self.pos.y = self.pos.y - 2
         elif self.direction == 'down':
-            self.pos[1] = self.pos[1] + 2
+            self.pos.y = self.pos.y + 2
         elif self.direction == 'left':
-            self.pos[0] = self.pos[0] - 2
+            self.pos.x = self.pos.x - 2
         elif self.direction == 'right':
-            self.pos[0] = self.pos[0] + 2
+            self.pos.x = self.pos.x + 2
         else:
             raise ValueError("Invalid direction " + self.direction)
 
@@ -108,8 +108,8 @@ class Sprite():
             self.update_edge()
 
     def update_node(self):
-        x_pos = self.pos[0] + 8
-        y_pos = self.pos[1] + 8
+        x_pos = self.pos.x + 8
+        y_pos = self.pos.y + 8
         pygame.draw.circle(self.graph_surf, (100, 150, 200), (x_pos, y_pos), 6)
         self.color_trail()
         self.last_drawn = x_pos, y_pos
@@ -158,15 +158,15 @@ class Sprite():
         pygame.draw.line(self.graph_surf,
                          (100, 200, 150),
                          (self.last_drawn[0], self.last_drawn[1]),
-                         (self.pos[0] + 8, self.pos[1] + 8),
+                         (self.pos.x + 8, self.pos.y + 8),
                          1)
 
     def reached_dest(self) -> bool:
         """Determine if the sprite has shifted completely to the destination"""
 
-        if self.pos[0] != self.ai.interface.player_pos.x * 16:
+        if self.pos.x != self.ai.interface.player_pos.x * 16:
             return False
-        if self.pos[1] != self.ai.interface.player_pos.y * 16:
+        if self.pos.y != self.ai.interface.player_pos.y * 16:
             return False
         return True
 
@@ -179,7 +179,7 @@ class Sprite():
             pygame.event.pump()
             for i in range(3):
                 self.state = self.img_assets[direction][i]
-                display_surf.blit(self.state, (self.pos[0], self.pos[1]))
+                display_surf.blit(self.state, (self.pos.x, self.pos.y))
                 pygame.display.flip()
 
 
@@ -282,7 +282,7 @@ class GameMaze:
 
         # Create shaded region + sprites vision circle
         display_fog = self.images['fog'].copy()
-        pygame.draw.circle(display_fog, (0, 0, 0, 0), (pos[0] + 8, pos[1] + 8),
+        pygame.draw.circle(display_fog, (0, 0, 0, 0), (pos.x + 8, pos.y + 8),
                            random.randint(32, 34), 0)
         
         if mode is "maze":
@@ -360,8 +360,8 @@ class GameMaze:
         """Win animation sequence"""
 
         pygame.event.pump()
-        display_surf.blit(self.images['door'], (player.pos[0],
-                                                player.pos[1]))
+        display_surf.blit(self.images['door'], (player.pos.x,
+                                                player.pos.y))
 
 
         myfont = pygame.font.Font('maze_pro/assets/fonts/breathe_fire.otf', 50)
@@ -595,7 +595,7 @@ class App:
                             self.display_mode)
         if self.display_mode is 'maze':
             self._display_surf.blit(self.player.state,
-                                    (self.player.pos[0], self.player.pos[1]))
+                                    (self.player.pos.x, self.player.pos.y))
         elif self.display_mode is 'graph':
             self._display_surf.blit(self.player.graph_surf, (0, 0))
 
