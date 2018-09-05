@@ -8,25 +8,15 @@ import codecs, json
 from tqdm import tqdm
 import numpy as np
 from dataclasses import dataclass
+from collections import namedtuple
 import matplotlib.pyplot as pyplot
 
-@dataclass
-class Maze:
-    """Object representing a maze"""
-    terrain: np.array
-    dim: (int, int)
+# A Maze object with an numpy array 'terrain' of dimension 'dim'
+Maze = namedtuple('Maze', ['terrain', 'dim'])
 
-@dataclass
-class Tile:
-    """Object representing a tile in the maze at position x,y"""
-    x: int
-    y: int
-
-    def __eq__(self, other):
-        return (self.x, self.y) == (other.x, other.y)
-
-    def __hash__(self):
-        return hash((self.x, self.y))
+# An index into a Maze.terrain. Note the origin in this sense in the top left
+# corner of the array.
+Tile = namedtuple('Tile', ['x', 'y'])
 
 class Resources():
     """Handles placement, tracking, and mining of resources in a maze
